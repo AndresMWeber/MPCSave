@@ -13,10 +13,20 @@ import re
 import os 
 from glob import glob
 from pprint import pprint
+from ConfigParser import SafeConfigParser
 
 from mpc.tessa import contexts
 
-
+# Config Setup
+parser = SafeConfigParser()
+parser.optionxform = str
+parser.read('/jobs/tvcUsers2015/andres-w/dev/python/MPCSave/save/config.ini')
+config = {}
+for section in parser.sections():
+    config[section]={}
+    for sub_item, value in parser.items(section):
+        config[section][sub_item] = value if ',' not in value else value.split(',')
+root = config['map']['server']
 
 
 class SaveData(object):
@@ -25,13 +35,9 @@ class SaveData(object):
         a = SaveData('/jobs/macysSanta_5403623/build/char_santa_balloon/maya/scenes/model/tester.ma')
         a.dir.get_job()
         b = SaveData('/jobs/sourPatchKidsGumAndSlurpee_5600273/build/char_spk_amputee/maya/scenes/model/RELEASE/char_spk_amputee_lodA/v003/char_spk_amputee_lodA.ma')
+        b.scene_file
+        b.dir
     """
-    template_discipline_folder = "maya/scenes/{DISCIPLINE}"
-    template_string = '{DESCRIPTION}_{DISCIPLINE}_{VERSION}_{INITIALS}_{OPTIONAL}{EXT}'
-    discipline_LUT = {'MDL':'model','LAYOUT':'layout','ANIM':'anim','PREVIS':'previs', 'LGT':'lighting','LOOKDEV':'lighting','FX':'fx',
-                      'MM':'matchmove','EXPORT':'export','SHADING':'shading','RIG':'rig','RP':'rigPuppet','RS':'rigSkeleton',
-                      'RB':'rigBound','TECHANIM':'techAnim'}
-    
     def __init__(self, input_filepath):
         self.input_folder = os.path.dirname(input_filepath)
         self.input_file = os.path.basename(input_filepath)
@@ -45,7 +51,7 @@ class SaveData(object):
     def get_filename(self):
         """ Returns the current iteration of the SceneFile object's name
         """
-        template_string_copy = self.template_string
+        template_string_copy = config['path']['template_string']
         
         if self.scene_file.optional == None:
             template_string_copy = template_string_copy.replace( '_{OPTIONAL}', '' )
@@ -61,10 +67,10 @@ class SaveData(object):
     def _get_discipline_folder(self):
         """ Builds the final directory for the scene file's current discipline
         """
-        dir = self.discipline_LUT[self.scene_file.discipline]
-        if dir in ['rigPuppet','rigBound','rigSkeleton']:
+        dir = config['discipline_LUT'][self.scene_file.discipline]
+        if dir in config['map']['rig_disciplines']:
             dir = os.path.join('rig',dir)
-        return self.template_discipline_folder.format(dir)
+        return config['path']['template_discipline_folder'].format(dir)
 
 
 class Directory(object):
@@ -81,9 +87,6 @@ class Directory(object):
         a = Directory('/jobs/sourPatchKidsGumAndSlurpee_5600273/build/char_spk_amputee/maya/scenes/model/RELEASE/char_spk_amputee_lodA/v003/char_spk_amputee_lodA.ma')
         print a
     """
-    scene_ignore_list = ['pitch','archive','library','pantry','reference','ripple','stats','templates','contactSheets','common','docs']
-    shot_ignore_list  = ['nuke_template','config','tools']
-    path_format_string = '/jobs/{JOB}/{SCENE}/{SHOT}'
     
     def __init__(self, context_in=None):
         """ init
@@ -130,7 +133,8 @@ class Directory(object):
             return True
     @staticmethod
     def get_jobs():
-        return [path.replace('/jobs/','') for path in glob('/jobs/*')]
+        return [path.replace('/%s/' % root,'')
+                for path in glob('/%s/*' % root)]
 
     def get_job(self):
         return self.context.job
@@ -142,7 +146,7 @@ class Directory(object):
             filter [str]: list of names to filter out
         Returns [str] or None: list of strings for shot names or None if scene wasn't found in current tree cache
         """
-        filter += self.shot_ignore_list
+        filter += config['map']['shot_ignore_list']
         if scene_name in self.tree_cache[self.context.job.name].keys():
             return [shot for shot in self.tree_cache[self.context.job.name][scene_name] if shot not in filter]
         else:
@@ -154,7 +158,7 @@ class Directory(object):
             filter [str]: list of names to filter out
         Returns [str] or None: list of strings for shot names or None if scene wasn't found in current tree cache
         """
-        filter += self.scene_ignore_list
+        filter += config['map']['scene_ignore_list']
         return [scene for scene in self.tree_cache[self.context.job.name].keys() if scene not in filter]
         
     def refresh_tree(self):
@@ -166,7 +170,7 @@ class Directory(object):
         self.tree_cache = {}
         self.tree_cache[job.name] = {}
         for scene in job.findChildren():
-            if scene.name not in self.scene_ignore_list:
+            if scene.name not in config['map']['scene_ignore_list']:
                 self.tree_cache[job.name][scene.name]=[]
                 for shot in scene.findChildren():
                     self.tree_cache[job.name][scene.name].append(shot.name)
@@ -175,7 +179,7 @@ class Directory(object):
     def build_path(self):
         """ Builds a hardlink path to the current context
         """
-        return self.path_format_string.format(JOB=self.context.job.name,SCENE=self.context.scene.name,SHOT=self.context.shot.name)
+        return config['path']['path_format_string'].format(JOB=self.context.job.name,SCENE=self.context.scene.name,SHOT=self.context.shot.name)
     
     def validate(self):
         """ Checks whether the currently set directory exists
@@ -184,7 +188,7 @@ class Directory(object):
         
     @staticmethod
     def _parse_path(file_path):
-        folders = [folder for folder in file_path.split('/') if folder != '' and folder != 'jobs']
+        folders = [folder for folder in file_path.split('/') if folder != '' and folder != root]
         return folders[:3]
     
     def __repr__(self):
@@ -195,21 +199,14 @@ class Directory(object):
 class SceneFile(object):
     """ This class will store all information relating to your scene file
     """
-    # Look up tables for discipline names
-    disciplines = ['MDL','LAYOUT','ANIM','PREVIS','LGT','FX','MM','SHADING','TECHANIM','LOOKDEV','EXPORT','RP','RS','RB','RIG']
-    
-    # Reg ex patterns
-    pattern_leading_v = re.compile("[\._][vV](\d+)[\._]")
-    pattern_only_numbers = re.compile('(?<=[._$/])(\d+)(?=[._$/])')
-    pattern_username = re.compile("[\._^](\w{2})[\._$]")
     
     def __init__(self, description=None, discipline=None, version=None, user=None, optional=None, extension=None):
-        self.description = description or 'unititled'
-        self.discipline = discipline or 'MDL'
-        self.version = version or 1
+        self.description = description or config['defaults']['description']
+        self.discipline = discipline or config['defaults']['discipline']
+        self.version = version or config['defaults']['version']
         self.optional = optional or None
         self.user = user or (gp.getuser()[0] + gp.getuser().split('-')[-1][0])
-        self.extension = extension or 'ma'
+        self.extension = extension or config['defaults']['extension']
 
     def increment(self, version=None, step=1):
         """ Increments the version by adding the step value to the current version or sets to a specific user entered version
@@ -243,7 +240,7 @@ class SceneFile(object):
             filename (str): filename to check
         Returns (str): string for the discipline found or empty string
         """
-        discipline_matches = re.findall('(?i)'+('|'.join(cls.disciplines)), filename)
+        discipline_matches = re.findall('(?i)'+('|'.join(config['map']['disciplines'])), filename)
         if discipline_matches:
             return discipline_matches[-1].upper()
         return ""
@@ -255,7 +252,8 @@ class SceneFile(object):
             filename (str): filename to check
         Returns (str): string for the discipline found or empty string
         """
-        match = [match for match in cls.pattern_username.findall(filename) if match.upper() not in cls.disciplines]
+        match = [match for match in re.findall(config['regex']['username'], filename)
+                 if match.upper() not in config['map']['disciplines']]
         if match:
             return match[-1].lower()
         return ""
@@ -269,11 +267,12 @@ class SceneFile(object):
         Returns (int): value of version found or -1 for no version found
         """
         result, found = -1, False
-        match = cls.pattern_leading_v.findall(filename)
+        
+        match = re.findall(config['regex']['leading_v'], filename)
         if match and not found:
             result, found = match[-1], True
         
-        match = [find for find in cls.pattern_only_numbers.findall(filename) if find != '']
+        match = [find for find in re.findall(config['regex']['only_numbers'], filename) if find != '']
         if match and not found:
             result, found = match[-1], True
         
@@ -286,10 +285,11 @@ class SceneFile(object):
             filename (str): filename...
         Returns (str): file extension or ma as default
         """
+        default = config['defaults']['extension']
         if not filename:
-            return 'ma'
+            return default
         else:
-            return os.path.splitext(filename)[-1].replace('.','') or 'ma'
+            return os.path.splitext(filename)[-1].replace('.','') or default
     
     def __repr__(self):
         """ Returns the representation of its current contents separated by comma

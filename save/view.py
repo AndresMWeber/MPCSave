@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    :module: mpcSave_UI
+    :module: view
     :platform: Maya 2012-2016
     :synopsis: This is a GUI that saves a new version of your scene file and automates naming
     :plans:
@@ -28,14 +28,7 @@ reload(wind)
 reload(model)
 
 
-class savePlusUI(object):
-    fileType = {0:"mayaAscii", 1:"mayaBinary"}
-    disciplineDirs = {'MDL':'model','LAYOUT':'layout','ANIM':'anim','PREVIS':'previs',
-                      'LGT':'lighting','LOOKDEV':'lighting','FX':'fx','MM':'matchmove',
-                      'EXPORT':'export','SHADING':'shading','RP':'rigPuppet',
-                      'RS':'rigSkeleton','RB':'rigBound','TECHANIM':'techAnim'}
-    disciplines = ['MDL','LAYOUT','ANIM','PREVIS','LGT','FX','MM','SHADING','TECHANIM','LOOKDEV','EXPORT','RP','RS','RB','RIG']
-    
+class MPCSaveUI(object):
     def __init__(self):        
         #VAR SETUP#
         self.save_data = model.saveData(os.path.abspath(cmds.file(q=True, sn=True)))
@@ -215,4 +208,4 @@ class savePlusUI(object):
         self.window.delete()
 
 if __name__=='__main__':
-    ui = savePlusUI()
+    ui = MPCSaveUI()
