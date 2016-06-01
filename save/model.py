@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    :module: attribute
+    :module: model
     :platform: None
     :synopsis: This module contains classes related to env path and file handling
     :plans:
@@ -8,25 +8,34 @@
 __author__ = "Andres Weber"
 __email__ = "andresmweber@gmail.com"
 __version__ = 1.0
+
+# Default Imports
 import getpass as gp
 import re
+import sys
 import os 
 from glob import glob
 from pprint import pprint
 from ConfigParser import SafeConfigParser
-
+# MPC Imports
 from mpc.tessa import contexts
 
-# Config Setup
-parser = SafeConfigParser()
-parser.optionxform = str
-parser.read('/jobs/tvcUsers2015/andres-w/dev/python/MPCSave/save/config.ini')
-config = {}
-for section in parser.sections():
-    config[section]={}
-    for sub_item, value in parser.items(section):
-        config[section][sub_item] = value if ',' not in value else value.split(',')
-root = config['map']['server']
+# Relative Path Config Setup
+__location__ =  os.path.dirname(os.path.realpath(__file__))
+__config__ = os.path.join(__location__, "config.ini")
+try:
+    parser = SafeConfigParser()
+    parser.optionxform = str
+    parser.read(__config__)
+    config = {}
+    for section in parser.sections():
+        config[section]={}
+        for sub_item, value in parser.items(section):
+            config[section][sub_item] = value if ',' not in value else value.split(',')
+    root = config['map']['server']
+except KeyError as err:
+    print err
+    raise IOError("File not found %s"%__config__)
 
 
 class SaveData(object):
@@ -131,13 +140,14 @@ class Directory(object):
             return False
         else:
             return True
+            
+    def get_job(self):
+        return self.context.job
+    
     @staticmethod
     def get_jobs():
         return [path.replace('/%s/' % root,'')
                 for path in glob('/%s/*' % root)]
-
-    def get_job(self):
-        return self.context.job
     
     def get_shots(self, scene_name, filter=[]):
         """ Simple query for list of shots in the current cached tree's specified scene
@@ -188,6 +198,11 @@ class Directory(object):
         
     @staticmethod
     def _parse_path(file_path):
+        """ Takes an input filepath and separates the first three paths assuming they are (job)/(sequence)/(shot)
+        Args:
+            file_path (str): input filepath
+        Returns [str]: list of strings length 3 that has the first three directories (MPC style)
+        """
         folders = [folder for folder in file_path.split('/') if folder != '' and folder != root]
         return folders[:3]
     
@@ -228,11 +243,12 @@ class SceneFile(object):
             filename (str): filename...
         Returns (SceneFile): scene file node from the init.
         """
-        version = cls._findVersion(filename)
+        version = max(cls._findVersion(filename), 1)
         user = cls._findUser(filename)
         discipline = cls._findDiscipline(filename)
-        return cls(version=version, user=user, discipline=discipline)
-        
+        description = cls._findDescription(filename, str(version), user, discipline)
+        return cls(description=description, version=version, user=user, discipline=discipline)
+
     @classmethod
     def _findDiscipline(cls, filename):
         """ Case insensitive search for any of the discipline shorthands
@@ -291,12 +307,36 @@ class SceneFile(object):
         else:
             return os.path.splitext(filename)[-1].replace('.','') or default
     
+    @classmethod
+    def _findDescription(cls, filename, version, user, discipline):
+        """ Given we have found version/username/disciplines we can assume everything preceeding
+            these will be the description of the file and return that.
+        Args:
+            filename (str): input filename
+            version (str): string of the version number
+            discipline (str): string of the discipline
+        Returns (str): string for the description or "untitiled"
+        """ 
+        default = config['defaults']['description']
+        indices = [filename.rfind(user), filename.rfind(version), filename.rfind(discipline)]        
+        upper_indices = [filename.rfind(user.upper()), filename.rfind(version.upper()), filename.rfind(discipline.upper())]
+        min_index = min([index for index in indices + upper_indices if index > 0])
+        try:
+            separator_index = min([index for index 
+                                   in [filename[0:min_index].rfind('.'), filename[0:min_index].rfind('_')] 
+                                   if index > 0])
+            return filename[:separator_index]
+        except ValueError as err:
+            return default
+        except TypeError as err:
+            return default
+        
     def __repr__(self):
         """ Returns the representation of its current contents separated by comma
         """
-        return ', '.join([str(self.version), self.discipline, self.user])
+        return ', '.join([self.description, str(self.version), self.discipline, self.user])
     
     def __str__(self):
         """ Returns the string value of its current contents separated by comma        
         """
-        return ', '.join([str(self.version), self.discipline, self.user])
+        return ', '.join([self.description, str(self.version), self.discipline, self.user])

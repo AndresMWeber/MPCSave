@@ -31,8 +31,7 @@ reload(model)
 class MPCSaveUI(object):
     def __init__(self):        
         #VAR SETUP#
-        self.save_data = model.saveData(os.path.abspath(cmds.file(q=True, sn=True)))
-        
+        self.save_data = model.SaveData(os.path.abspath(cmds.file(q=True, sn=True)))
         self._setupUI()
     
     def _setupUI(self):

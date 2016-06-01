@@ -25,28 +25,34 @@ class TestSceneFile(unittest.TestCase):
         """ Tests _findVersion, _findDiscipline, and _findUser all in one
         """
         self.assertEqual(model.SceneFile.from_existing("this_483_is_a_t_v493_est_v34322_lookdev_dsfiv39lename_v1032_aw.asdf").__str__(),
-                          "1032, LOOKDEV, aw")
+                          "this_483_is_a_t_v493_est_v34322_lookdev_dsfiv39lename, 1032, LOOKDEV, aw")
         self.assertEqual(model.SceneFile.from_existing("94_this_is_a_test_dsf_38493_ilename_1032_cr.mb").__str__(),
-                          "1032, MDL, cr")
+                          "94_this_is_a_test_dsf_38493_ilename, 1032, MDL, cr")
         self.assertEqual(model.SceneFile.from_existing("43_this_is_a_test_43_dsfilename_1032_dk.ma").__str__(),
-                          "1032, MDL, dk")
+                          "43_this_is_a_test_43_dsfilename, 1032, MDL, dk")
         self.assertEqual(model.SceneFile.from_existing("this_is_a_test_48290_dsfilename_1032.fml").__str__(),
-                          "1032, MDL, is")
+                          "this, 1032, MDL, is")
         self.assertEqual(model.SceneFile.from_existing("this_is_a_test_29547_dsfilename_V1032.fum").__str__(),
-                          "1032, MDL, is")
+                          "this, 1032, MDL, is")
         self.assertEqual(model.SceneFile.from_existing("testing_crappy_last_3049_349_andWeDidntCare1049.osx").__str__(),
-                          "349, MDL, aw")
+                          "testing_crappy_last_3049, 349, MDL, aw")
         self.assertEqual(model.SceneFile.from_existing("anim_cave.v005.ma").__str__(),
-                          "5, ANIM, aw")
+                          "anim, 5, ANIM, aw")
         self.assertEqual(model.SceneFile.from_existing("mpc_human_rig_v02_jf.mb").__str__(),
-                          "2, RIG, jf")
+                          "mpc_human_rig, 2, RIG, jf")
         self.assertEqual(model.SceneFile.from_existing("SBN_SOC_EarthANIM_013_ac.aep").__str__(),
-                          "13, ANIM, ac")
+                          "SBN_SOC, 13, ANIM, ac")
         self.assertEqual(model.SceneFile.from_existing("macys_PV_020_fx_v006.mb").__str__(),
-                          "6, FX, pv")
+                          "macys, 6, FX, pv")
         self.assertEqual(model.SceneFile.from_existing("Also_checkfor_no_result_stupid_4v9320_03v93_3942djf39_39fk_.fbx").__str__(),
-                          "-1, MDL, no")
+                          "Also_checkfor, 1, MDL, no")
     
+    def testSceneFile_from_existing_description(self):
+        self.assertEqual(model.SceneFile.from_existing('char_jellyfish_puffHeadA_LAYOUT_v05_mn_test.ma').__str__(),
+                         "char_jellyfish_puffHeadA, 5, LAYOUT, mn")
+        self.assertEqual(model.SceneFile.from_existing('v01_brian_aw_LAYOUT.mc').__str__(),
+                         "untitled, 1, LAYOUT, aw")
+        
     def testSceneFile_findExt_existing(self):
         self.assertEqual(model.SceneFile._findExt('test'),'ma')
 
