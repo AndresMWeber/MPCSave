@@ -9,7 +9,8 @@ __author__ = "Andres Weber"
 __email__ = "andresmweber@gmail.com"
 __version__ = 1.0
 
-
+import sys
+import argparse
 
 def main():
     parser = argparse.ArgumentParser('ftrack_copyAsset', description="Tool to copy ftrack srcAsset builds between jobs")
@@ -32,7 +33,7 @@ def main():
     except KeyError:
         print "Set job to destination job first!"
         return
-    copyAsset(args)
+    #copyAsset(args)
 
-if name == "__main__":
+if __name__ == "__main__":
     main()
